@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type Categoria = "Frutas" | "Verduras" | "Otros";
 type TipoVenta = "kg" | "unidad" | "atado" | "bandeja" | "rama" | "manojo" | "bolsa";
@@ -12,87 +13,17 @@ type Producto = {
   precio: number;
   tipo: TipoVenta;
   categoria: Categoria;
-  emoji: string;
+  emoji: string | null;
+  imagen: string | null;
+  disponible: boolean;
+  orden: number | null;
 };
 
 type ItemCarrito = {
   cantidad: number;
 };
 
-const productos: Producto[] = [
-  { id: 1, nombre: "Acelga", precio: 1600, tipo: "atado", categoria: "Verduras", emoji: "🥬" },
-  { id: 2, nombre: "Achicoria", precio: 1800, tipo: "atado", categoria: "Verduras", emoji: "🥬" },
-  { id: 3, nombre: "Ajo", precio: 800, tipo: "unidad", categoria: "Verduras", emoji: "🧄" },
-  { id: 4, nombre: "Ananá", precio: 4900, tipo: "unidad", categoria: "Frutas", emoji: "🍍" },
-  { id: 5, nombre: "Anco Coquena", precio: 4200, tipo: "kg", categoria: "Verduras", emoji: "🎃" },
-  { id: 6, nombre: "Apio", precio: 5300, tipo: "rama", categoria: "Verduras", emoji: "🥬" },
-  { id: 7, nombre: "Arándanos", precio: 4200, tipo: "bandeja", categoria: "Frutas", emoji: "🫐" },
-  { id: 8, nombre: "Banana Bolivia", precio: 3400, tipo: "kg", categoria: "Frutas", emoji: "🍌" },
-  { id: 9, nombre: "Banana Ecuador", precio: 4400, tipo: "kg", categoria: "Frutas", emoji: "🍌" },
-  { id: 10, nombre: "Batata", precio: 3200, tipo: "kg", categoria: "Verduras", emoji: "🍠" },
-  { id: 11, nombre: "Berenjena", precio: 2700, tipo: "kg", categoria: "Verduras", emoji: "🍆" },
-  { id: 12, nombre: "Boniato", precio: 3800, tipo: "kg", categoria: "Verduras", emoji: "🍠" },
-  { id: 13, nombre: "Brócoli", precio: 2300, tipo: "unidad", categoria: "Verduras", emoji: "🥦" },
-  { id: 14, nombre: "Carbón", precio: 3600, tipo: "bolsa", categoria: "Otros", emoji: "🔥" },
-  { id: 15, nombre: "Cebolla", precio: 4500, tipo: "kg", categoria: "Verduras", emoji: "🧅" },
-  { id: 16, nombre: "Cebolla de verdeo", precio: 4200, tipo: "unidad", categoria: "Verduras", emoji: "🌿" },
-  { id: 17, nombre: "Cebolla morada", precio: 2800, tipo: "kg", categoria: "Verduras", emoji: "🧅" },
-  { id: 18, nombre: "Cebollín", precio: 900, tipo: "atado", categoria: "Verduras", emoji: "🌿" },
-  { id: 19, nombre: "Cherry", precio: 7600, tipo: "kg", categoria: "Verduras", emoji: "🍅" },
-  { id: 20, nombre: "Choclo", precio: 2300, tipo: "unidad", categoria: "Verduras", emoji: "🌽" },
-  { id: 21, nombre: "Ciruela", precio: 4600, tipo: "kg", categoria: "Frutas", emoji: "🟣" },
-  { id: 22, nombre: "Ciruela amarilla", precio: 6200, tipo: "kg", categoria: "Frutas", emoji: "🟡" },
-  { id: 23, nombre: "Ciruela gotita miel", precio: 4200, tipo: "kg", categoria: "Frutas", emoji: "🟡" },
-  { id: 24, nombre: "Durazno", precio: 6300, tipo: "kg", categoria: "Frutas", emoji: "🍑" },
-  { id: 25, nombre: "Espinaca", precio: 1500, tipo: "atado", categoria: "Verduras", emoji: "🥬" },
-  { id: 26, nombre: "Frutilla", precio: 8400, tipo: "kg", categoria: "Frutas", emoji: "🍓" },
-  { id: 27, nombre: "Higo", precio: 6900, tipo: "kg", categoria: "Frutas", emoji: "🟣" },
-  { id: 28, nombre: "Jengibre", precio: 7000, tipo: "kg", categoria: "Verduras", emoji: "🫚" },
-  { id: 29, nombre: "Kiwi", precio: 7600, tipo: "kg", categoria: "Frutas", emoji: "🥝" },
-  { id: 30, nombre: "Lechuga crespa", precio: 7700, tipo: "kg", categoria: "Verduras", emoji: "🥬" },
-  { id: 31, nombre: "Lechuga mantecosa", precio: 4200, tipo: "kg", categoria: "Verduras", emoji: "🥬" },
-  { id: 32, nombre: "Lechuga repollada", precio: 2200, tipo: "kg", categoria: "Verduras", emoji: "🥬" },
-  { id: 33, nombre: "Leña", precio: 5700, tipo: "bolsa", categoria: "Otros", emoji: "🪵" },
-  { id: 34, nombre: "Lima", precio: 8400, tipo: "kg", categoria: "Frutas", emoji: "🍋" },
-  { id: 35, nombre: "Limón", precio: 1400, tipo: "kg", categoria: "Frutas", emoji: "🍋" },
-  { id: 36, nombre: "Mandarina Criolla", precio: 1200, tipo: "kg", categoria: "Frutas", emoji: "🍊" },
-  { id: 37, nombre: "Mandarina Elendale", precio: 1100, tipo: "kg", categoria: "Frutas", emoji: "🍊" },
-  { id: 38, nombre: "Mandarina Nova", precio: 1500, tipo: "kg", categoria: "Frutas", emoji: "🍊" },
-  { id: 39, nombre: "Mango", precio: 2600, tipo: "kg", categoria: "Frutas", emoji: "🥭" },
-  { id: 40, nombre: "Maní", precio: 1000, tipo: "unidad", categoria: "Otros", emoji: "🥜" },
-  { id: 41, nombre: "Manzana Jaula", precio: 5000, tipo: "kg", categoria: "Frutas", emoji: "🍎" },
-  { id: 42, nombre: "Manzana Pink Lady", precio: 5300, tipo: "kg", categoria: "Frutas", emoji: "🍎" },
-  { id: 43, nombre: "Manzana Red", precio: 3300, tipo: "kg", categoria: "Frutas", emoji: "🍎" },
-  { id: 44, nombre: "Manzana Red Delicious", precio: 4700, tipo: "kg", categoria: "Frutas", emoji: "🍎" },
-  { id: 45, nombre: "Manzana Verde", precio: 3600, tipo: "kg", categoria: "Frutas", emoji: "🍏" },
-  { id: 46, nombre: "Melón Santiago", precio: 6700, tipo: "kg", categoria: "Frutas", emoji: "🍈" },
-  { id: 47, nombre: "Naranja jugo", precio: 1400, tipo: "kg", categoria: "Frutas", emoji: "🍊" },
-  { id: 48, nombre: "Naranja Ombligo", precio: 1600, tipo: "kg", categoria: "Frutas", emoji: "🍊" },
-  { id: 49, nombre: "Palta", precio: 6600, tipo: "kg", categoria: "Frutas", emoji: "🥑" },
-  { id: 50, nombre: "Palta Argentina", precio: 3800, tipo: "kg", categoria: "Frutas", emoji: "🥑" },
-  { id: 51, nombre: "Papa", precio: 2000, tipo: "kg", categoria: "Verduras", emoji: "🥔" },
-  { id: 52, nombre: "Pelón blanco", precio: 5100, tipo: "kg", categoria: "Frutas", emoji: "🍑" },
-  { id: 53, nombre: "Pelón MGV", precio: 3400, tipo: "kg", categoria: "Frutas", emoji: "🍑" },
-  { id: 54, nombre: "Pepino", precio: 1300, tipo: "kg", categoria: "Verduras", emoji: "🥒" },
-  { id: 55, nombre: "Pera Jaula", precio: 3300, tipo: "kg", categoria: "Frutas", emoji: "🍐" },
-  { id: 56, nombre: "Perejil", precio: 300, tipo: "manojo", categoria: "Verduras", emoji: "🌿" },
-  { id: 57, nombre: "Pimiento Rojo", precio: 10500, tipo: "kg", categoria: "Verduras", emoji: "🫑" },
-  { id: 58, nombre: "Pimiento Verde", precio: 6300, tipo: "kg", categoria: "Verduras", emoji: "🫑" },
-  { id: 59, nombre: "Pomelo", precio: 1700, tipo: "kg", categoria: "Frutas", emoji: "🍊" },
-  { id: 60, nombre: "Puerro", precio: 500, tipo: "unidad", categoria: "Verduras", emoji: "🌿" },
-  { id: 61, nombre: "Remolacha", precio: 2400, tipo: "kg", categoria: "Verduras", emoji: "🫜" },
-  { id: 62, nombre: "Repollo", precio: 900, tipo: "kg", categoria: "Verduras", emoji: "🥬" },
-  { id: 63, nombre: "Rúcula", precio: 1900, tipo: "atado", categoria: "Verduras", emoji: "🌿" },
-  { id: 64, nombre: "Sandía", precio: 2000, tipo: "kg", categoria: "Frutas", emoji: "🍉" },
-  { id: 65, nombre: "Tomate Perita", precio: 3500, tipo: "kg", categoria: "Verduras", emoji: "🍅" },
-  { id: 66, nombre: "Tomate Redondo", precio: 3100, tipo: "kg", categoria: "Verduras", emoji: "🍅" },
-  { id: 67, nombre: "Uva Blanca", precio: 6600, tipo: "kg", categoria: "Frutas", emoji: "🍇" },
-  { id: 68, nombre: "Uva Red", precio: 8400, tipo: "kg", categoria: "Frutas", emoji: "🍇" },
-  { id: 69, nombre: "Zanahoria", precio: 2600, tipo: "kg", categoria: "Verduras", emoji: "🥕" },
-  { id: 70, nombre: "Zapallito", precio: 4400, tipo: "kg", categoria: "Verduras", emoji: "🥒" },
-  { id: 71, nombre: "Zapallo", precio: 1500, tipo: "kg", categoria: "Verduras", emoji: "🎃" },
-  { id: 72, nombre: "Zucchini", precio: 2800, tipo: "kg", categoria: "Verduras", emoji: "🥒" },
-];
+
 
 const huevos = [
   { id: "huevos-media", nombre: "½ docena", precio: 1500 },
@@ -108,6 +39,9 @@ const formatoPrecio = (precio: number) =>
   }).format(precio);
 
 export default function Home() {
+const [productos, setProductos] = useState<Producto[]>([]);
+const [cargandoProductos, setCargandoProductos] = useState(true);
+
   const [carrito, setCarrito] = useState<Record<number, ItemCarrito>>({});
   const [carritoHuevos, setCarritoHuevos] = useState<Record<string, number>>({});
   const [categoria, setCategoria] = useState("Todos");
@@ -118,6 +52,27 @@ export default function Home() {
   const [direccion, setDireccion] = useState("");
   const [referencia, setReferencia] = useState("");
   const [observaciones, setObservaciones] = useState("");
+
+  useEffect(() => {
+  const cargarProductos = async () => {
+    const { data, error } = await supabase
+      .from("productos")
+      .select("*")
+      .eq("disponible", true)
+      .order("orden", { ascending: true });
+
+    if (error) {
+      console.error("Error cargando productos:", error);
+      setCargandoProductos(false);
+      return;
+    }
+
+    setProductos((data ?? []) as Producto[]);
+    setCargandoProductos(false);
+  };
+
+  cargarProductos();
+}, []);
   
   const pasoProducto = (producto: Producto) => {
     return producto.tipo === "kg" ? 0.5 : 1;
@@ -347,6 +302,13 @@ ${
       </section>
 
       <section className="max-w-6xl mx-auto px-4 pb-28">
+        {cargandoProductos && (
+  <div className="text-center py-10">
+    <p className="text-gray-500 font-semibold">
+      Cargando productos... 👑
+    </p>
+  </div>
+)}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
 
           {mostrarHuevos && (
@@ -412,7 +374,7 @@ ${
                 className="bg-white rounded-2xl border shadow-sm overflow-hidden"
               >
                 <div className="h-28 md:h-36 bg-green-50 flex items-center justify-center text-5xl">
-                  {producto.emoji}
+                  {producto.emoji || "🥬"}
                 </div>
 
                 <div className="p-3 md:p-4">
