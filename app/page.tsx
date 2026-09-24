@@ -294,7 +294,7 @@ ${
       <header className="bg-white border-b sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
           <Image
-            src="/logo-la-reina.jpeg"
+            src="/logo-la-reina.jpg.jpeg"
             alt="Verdulería La Reina"
             width={140}
             height={140}
