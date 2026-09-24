@@ -5,7 +5,15 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Categoria = "Frutas" | "Verduras" | "Otros";
-type TipoVenta = "kg" | "unidad" | "atado" | "bandeja" | "rama" | "manojo" | "bolsa";
+type TipoVenta =
+  | "kg"
+  | "unidad"
+  | "atado"
+  | "bandeja"
+  | "rama"
+  | "manojo"
+  | "bolsa"
+  | "especial";
 
 type Producto = {
   id: number;
@@ -16,20 +24,22 @@ type Producto = {
   emoji: string | null;
   imagen: string | null;
   disponible: boolean;
+  destacado: boolean;
   orden: number | null;
+  
 };
-
 type ItemCarrito = {
   cantidad: number;
 };
+type OpcionProducto = {
+  id: number;
+  producto_id: number;
+  nombre: string;
+  precio: number;
+  orden: number;
+};
 
 
-
-const huevos = [
-  { id: "huevos-media", nombre: "½ docena", precio: 1500 },
-  { id: "huevos-docena", nombre: "1 docena", precio: 2500 },
-  { id: "huevos-maple", nombre: "1 maple", precio: 5500 },
-];
 
 const formatoPrecio = (precio: number) =>
   new Intl.NumberFormat("es-AR", {
@@ -41,6 +51,7 @@ const formatoPrecio = (precio: number) =>
 export default function Home() {
 const [productos, setProductos] = useState<Producto[]>([]);
 const [cargandoProductos, setCargandoProductos] = useState(true);
+const [opcionesProducto, setOpcionesProducto] = useState<OpcionProducto[]>([]);
 
   const [carrito, setCarrito] = useState<Record<number, ItemCarrito>>({});
   const [carritoHuevos, setCarritoHuevos] = useState<Record<string, number>>({});
@@ -56,19 +67,33 @@ const [cargandoProductos, setCargandoProductos] = useState(true);
   useEffect(() => {
   const cargarProductos = async () => {
     const { data, error } = await supabase
-      .from("productos")
-      .select("*")
-      .eq("disponible", true)
-      .order("orden", { ascending: true });
+  .from("productos")
+  .select("*")
+  .eq("disponible", true)
+  .order("destacado", { ascending: false })
+  .order("nombre", { ascending: true });
 
     if (error) {
       console.error("Error cargando productos:", error);
       setCargandoProductos(false);
       return;
     }
-
+console.log(
+  "DESTACADOS:",
+  data?.filter((producto) => producto.destacado)
+);
     setProductos((data ?? []) as Producto[]);
     setCargandoProductos(false);
+    const { data: opciones, error: errorOpciones } = await supabase
+  .from("opciones_producto")
+  .select("*")
+  .order("orden", { ascending: true });
+
+if (errorOpciones) {
+  console.error("Error cargando opciones:", errorOpciones);
+} else {
+  setOpcionesProducto((opciones ?? []) as OpcionProducto[]);
+}
   };
 
   cargarProductos();
@@ -130,7 +155,8 @@ const [cargandoProductos, setCargandoProductos] = useState(true);
     });
   };
 
-  const productosVisibles = productos.filter((producto) => {
+ const productosVisibles = productos
+  .filter((producto) => {
     const coincideCategoria =
       categoria === "Todos" || producto.categoria === categoria;
 
@@ -139,11 +165,23 @@ const [cargandoProductos, setCargandoProductos] = useState(true);
       .includes(busqueda.toLowerCase());
 
     return coincideCategoria && coincideBusqueda;
+  })
+  .sort((a, b) => {
+    if (a.destacado && !b.destacado) return -1;
+    if (!a.destacado && b.destacado) return 1;
+
+    return a.nombre.localeCompare(b.nombre, "es");
   });
 
-  const mostrarHuevos =
-    (categoria === "Todos" || categoria === "Otros") &&
-    "huevos".includes(busqueda.toLowerCase());
+  const productoHuevos = productos.find(
+  (producto) => producto.nombre.toLowerCase() === "huevos"
+);
+
+const opcionesHuevos = productoHuevos
+  ? opcionesProducto.filter(
+      (opcion) => opcion.producto_id === productoHuevos.id
+    )
+  : [];
 
   const subtotalProductos = useMemo(() => {
     return productos.reduce((total, producto) => {
@@ -152,11 +190,9 @@ const [cargandoProductos, setCargandoProductos] = useState(true);
     }, 0);
   }, [carrito]);
 
-  const subtotalHuevos = useMemo(() => {
-    return huevos.reduce((total, opcion) => {
-      return total + opcion.precio * (carritoHuevos[opcion.id] || 0);
-    }, 0);
-  }, [carritoHuevos]);
+  const subtotalHuevos = opcionesHuevos.reduce((total, opcion) => {
+  return total + opcion.precio * (carritoHuevos[String(opcion.id)] || 0);
+}, 0);
 
   const subtotal = subtotalProductos + subtotalHuevos;
   const costoEnvio = entrega === "envio" ? 2000 : 0;
@@ -198,15 +234,15 @@ const [cargandoProductos, setCargandoProductos] = useState(true);
       )} — ${formatoPrecio(importe)}`;
     });
 
-  const lineasHuevos = huevos
-    .filter((opcion) => carritoHuevos[opcion.id])
-    .map((opcion) => {
-      const cantidad = carritoHuevos[opcion.id];
+  const lineasHuevos = opcionesHuevos
+  .filter((opcion) => carritoHuevos[String(opcion.id)])
+  .map((opcion) => {
+    const cantidad = carritoHuevos[String(opcion.id)];
 
-      return `• Huevos — ${cantidad} × ${opcion.nombre} — ${formatoPrecio(
-        opcion.precio * cantidad
-      )}`;
-    });
+    return `• Huevos — ${cantidad} × ${opcion.nombre} — ${formatoPrecio(
+      opcion.precio * cantidad
+    )}`;
+  });
 
   const lineasPedido = [...lineasProductos, ...lineasHuevos].join("\n");
 
@@ -311,61 +347,68 @@ ${
 )}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
 
-          {mostrarHuevos && (
-            <article className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-              <div className="h-28 bg-yellow-50 flex items-center justify-center text-5xl">
-                🥚
-              </div>
 
-              <div className="p-3">
-                <h2 className="font-bold">Huevos</h2>
-
-                <div className="mt-3 space-y-2">
-                  {huevos.map((opcion) => {
-                    const cantidad = carritoHuevos[opcion.id] || 0;
-
-                    return (
-                      <div key={opcion.id} className="border rounded-xl p-2">
-                        <div className="flex justify-between text-sm">
-                          <span>{opcion.nombre}</span>
-                          <strong>{formatoPrecio(opcion.precio)}</strong>
-                        </div>
-
-                        {cantidad === 0 ? (
-                          <button
-                            onClick={() => agregarHuevo(opcion.id)}
-                            className="mt-2 w-full bg-green-100 text-green-900 rounded-lg py-1 font-bold"
-                          >
-                            + Agregar
-                          </button>
-                        ) : (
-                          <div className="mt-2 flex justify-between items-center bg-green-800 text-white rounded-lg">
-                            <button
-                              onClick={() => quitarHuevo(opcion.id)}
-                              className="px-3 py-1"
-                            >
-                              −
-                            </button>
-
-                            <strong>{cantidad}</strong>
-
-                            <button
-                              onClick={() => agregarHuevo(opcion.id)}
-                              className="px-3 py-1"
-                            >
-                              +
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </article>
-          )}
-
+          
           {productosVisibles.map((producto) => {
+            if (producto.nombre.toLowerCase() === "huevos") {
+  return (
+    <article
+  key={producto.id}
+  className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+>
+  <div className="h-28 md:h-36 bg-green-50 flex items-center justify-center text-5xl">
+  {producto.emoji || "🥬"}
+</div>
+
+      <div className="p-3 md:p-4">
+        <h2 className="font-bold">Huevos</h2>
+
+        <div className="mt-3 space-y-2">
+          {opcionesHuevos.map((opcion) => {
+            const idOpcion = String(opcion.id);
+            const cantidad = carritoHuevos[idOpcion] || 0;
+
+            return (
+              <div key={opcion.id} className="border rounded-xl p-2">
+                <div className="flex justify-between text-sm">
+                  <span>{opcion.nombre}</span>
+                  <strong>{formatoPrecio(opcion.precio)}</strong>
+                </div>
+
+                {cantidad === 0 ? (
+                  <button
+                    onClick={() => agregarHuevo(idOpcion)}
+                    className="mt-2 w-full bg-green-100 text-green-900 rounded-lg py-1 font-bold"
+                  >
+                    + Agregar
+                  </button>
+                ) : (
+                  <div className="mt-2 flex justify-between items-center bg-green-800 text-white rounded-lg">
+                    <button
+                      onClick={() => quitarHuevo(idOpcion)}
+                      className="px-3 py-1"
+                    >
+                      −
+                    </button>
+
+                    <strong>{cantidad}</strong>
+
+                    <button
+                      onClick={() => agregarHuevo(idOpcion)}
+                      className="px-3 py-1"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </article>
+  );
+}
             const cantidad = carrito[producto.id]?.cantidad || 0;
 
             return (
@@ -373,9 +416,24 @@ ${
                 key={producto.id}
                 className="bg-white rounded-2xl border shadow-sm overflow-hidden"
               >
-                <div className="h-28 md:h-36 bg-green-50 flex items-center justify-center text-5xl">
-                  {producto.emoji || "🥬"}
-                </div>
+                {producto.destacado && (
+  <div className="bg-yellow-400 text-yellow-950 text-xs font-black text-center py-1">
+    ⭐ DESTACADO
+  </div>
+)}
+                {producto.imagen ? (
+  <div className="h-28 md:h-36 bg-green-50">
+    <img
+      src={producto.imagen}
+      alt={producto.nombre}
+      className="w-full h-full object-cover"
+    />
+  </div>
+) : (
+  <div className="h-28 md:h-36 bg-green-50 flex items-center justify-center text-5xl">
+    {producto.emoji || "🥬"}
+  </div>
+)}
 
                 <div className="p-3 md:p-4">
                   <h2 className="font-bold min-h-10">
@@ -495,8 +553,8 @@ ${
                 );
               })}
 
-              {huevos.map((opcion) => {
-                const cantidad = carritoHuevos[opcion.id] || 0;
+              {opcionesHuevos.map((opcion) => {
+                const cantidad = carritoHuevos[String(opcion.id)] || 0;
 
                 if (!cantidad) return null;
 
