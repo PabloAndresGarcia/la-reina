@@ -25,6 +25,7 @@ type Producto = {
   imagen: string | null;
   disponible: boolean;
   destacado: boolean;
+  descuento_cantidad: boolean;
   orden: number | null;
   
 };
@@ -79,8 +80,8 @@ const [opcionesProducto, setOpcionesProducto] = useState<OpcionProducto[]>([]);
       return;
     }
 console.log(
-  "DESTACADOS:",
-  data?.filter((producto) => producto.destacado)
+  "PAPA:",
+  data?.find((producto) => producto.nombre === "Papa")
 );
     setProductos((data ?? []) as Producto[]);
     setCargandoProductos(false);
@@ -102,6 +103,30 @@ if (errorOpciones) {
   const pasoProducto = (producto: Producto) => {
     return producto.tipo === "kg" ? 0.5 : 1;
   };
+
+  const porcentajeDescuento = (
+  producto: Producto,
+  cantidad: number
+) => {
+  if (!producto.descuento_cantidad) return 0;
+  if (producto.tipo !== "kg") return 0;
+
+  if (cantidad >= 4) return 20;
+  if (cantidad >= 3) return 15;
+  if (cantidad >= 2) return 10;
+
+  return 0;
+};
+
+const calcularImporte = (
+  producto: Producto,
+  cantidad: number
+) => {
+  const importeOriginal = producto.precio * cantidad;
+  const descuento = porcentajeDescuento(producto, cantidad);
+
+  return importeOriginal * (1 - descuento / 100);
+};
 
   const agregar = (producto: Producto) => {
     const paso = pasoProducto(producto);
@@ -183,12 +208,13 @@ const opcionesHuevos = productoHuevos
     )
   : [];
 
-  const subtotalProductos = useMemo(() => {
-    return productos.reduce((total, producto) => {
-      const cantidad = carrito[producto.id]?.cantidad || 0;
-      return total + producto.precio * cantidad;
-    }, 0);
-  }, [carrito]);
+ const subtotalProductos = useMemo(() => {
+  return productos.reduce((total, producto) => {
+    const cantidad = carrito[producto.id]?.cantidad || 0;
+
+    return total + calcularImporte(producto, cantidad);
+  }, 0);
+}, [carrito, productos]);
 
   const subtotalHuevos = opcionesHuevos.reduce((total, opcion) => {
   return total + opcion.precio * (carritoHuevos[String(opcion.id)] || 0);
@@ -225,14 +251,17 @@ const opcionesHuevos = productoHuevos
   const lineasProductos = productos
     .filter((producto) => carrito[producto.id]?.cantidad)
     .map((producto) => {
-      const cantidad = carrito[producto.id].cantidad;
-      const importe = producto.precio * cantidad;
+  const cantidad = carrito[producto.id].cantidad;
+  const importe = calcularImporte(producto, cantidad);
+  const descuento = porcentajeDescuento(producto, cantidad);
 
-      return `• ${producto.nombre} — ${textoCantidad(
-        producto,
-        cantidad
-      )} — ${formatoPrecio(importe)}`;
-    });
+  return `• ${producto.nombre} — ${textoCantidad(
+    producto,
+    cantidad
+  )} — ${formatoPrecio(importe)}${
+    descuento > 0 ? ` (${descuento}% OFF)` : ""
+  }`;
+});
 
   const lineasHuevos = opcionesHuevos
   .filter((opcion) => carritoHuevos[String(opcion.id)])
@@ -444,9 +473,17 @@ ${
                     {formatoPrecio(producto.precio)}
                   </p>
 
-                  <p className="text-xs text-gray-500">
-                    por {producto.tipo}
-                  </p>
+                  {producto.descuento_cantidad && producto.tipo === "kg" && (
+  <div className="mt-2 bg-yellow-50 border border-yellow-300 rounded-xl p-2">
+    <p className="text-xs font-black text-yellow-900">
+      💰 LLEVANDO MÁS, PAGÁS MENOS
+    </p>
+
+    <p className="text-[11px] text-yellow-800 mt-1 font-semibold">
+      2 kg -10% · 3 kg -15% · 4 kg+ -20%
+    </p>
+  </div>
+)}
 
                   {cantidad === 0 ? (
                     <button
@@ -477,9 +514,27 @@ ${
                         </button>
                       </div>
 
-                      <p className="text-center text-xs text-gray-500 mt-2">
-                        {formatoPrecio(producto.precio * cantidad)}
-                      </p>
+                      {porcentajeDescuento(producto, cantidad) > 0 ? (
+  <div className="text-center mt-2">
+    <p className="text-xs font-bold text-green-700">
+      🎉 {porcentajeDescuento(producto, cantidad)}% OFF aplicado
+    </p>
+
+    <div className="flex justify-center items-center gap-2 mt-1">
+      <span className="text-xs text-gray-400 line-through">
+        {formatoPrecio(producto.precio * cantidad)}
+      </span>
+
+      <span className="text-sm font-black text-green-800">
+        {formatoPrecio(calcularImporte(producto, cantidad))}
+      </span>
+    </div>
+  </div>
+) : (
+  <p className="text-center text-xs text-gray-500 mt-2">
+    {formatoPrecio(producto.precio * cantidad)}
+  </p>
+)}
                     </div>
                   )}
                 </div>
@@ -546,9 +601,23 @@ ${
                       </p>
                     </div>
 
-                    <strong>
-                      {formatoPrecio(producto.precio * cantidad)}
-                    </strong>
+                    <div className="text-right">
+  {porcentajeDescuento(producto, cantidad) > 0 && (
+    <>
+      <p className="text-xs font-bold text-green-700">
+        {porcentajeDescuento(producto, cantidad)}% OFF
+      </p>
+
+      <p className="text-xs text-gray-400 line-through">
+        {formatoPrecio(producto.precio * cantidad)}
+      </p>
+    </>
+  )}
+
+  <strong className="text-green-800">
+    {formatoPrecio(calcularImporte(producto, cantidad))}
+  </strong>
+</div>
                   </div>
                 );
               })}

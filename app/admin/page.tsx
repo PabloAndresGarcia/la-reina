@@ -36,8 +36,8 @@ export default function AdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f7f2] flex items-center justify-center p-4">
-      <div className="bg-white border shadow-sm rounded-3xl p-6 w-full max-w-md">
+    <main className="min-h-screen bg-[#f7f7f2] flex items-center justify-center p-4 text-gray-900">
+      <div className="bg-white border border-gray-300 shadow-md rounded-3xl p-6 w-full max-w-md">
 
         <div className="flex justify-center mb-4">
           <Image
@@ -49,15 +49,15 @@ export default function AdminPage() {
           />
         </div>
 
-        <h1 className="text-2xl font-bold text-center">
+        <h1 className="text-2xl font-black text-gray-900 text-center">
           Administración
         </h1>
 
-        <p className="text-gray-500 text-center mt-1 mb-6">
+        <p className="text-gray-600 font-medium text-center mt-1 mb-6">
           Verdulería La Reina 👑
         </p>
 
-        <label className="text-sm font-semibold">
+        <label className="block text-sm font-bold text-gray-900 mb-1">
           Email
         </label>
 
@@ -66,10 +66,10 @@ export default function AdminPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="tu@email.com"
-          className="w-full border rounded-xl px-4 py-3 mt-1 mb-4 outline-none focus:border-green-700"
+          className="w-full bg-white text-gray-900 placeholder:text-gray-500 border border-gray-400 rounded-xl px-4 py-3 mb-4 outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
         />
 
-        <label className="text-sm font-semibold">
+        <label className="block text-sm font-bold text-gray-900 mb-1">
           Contraseña
         </label>
 
@@ -81,11 +81,11 @@ export default function AdminPage() {
             if (e.key === "Enter") iniciarSesion();
           }}
           placeholder="••••••••"
-          className="w-full border rounded-xl px-4 py-3 mt-1 outline-none focus:border-green-700"
+          className="w-full bg-white text-gray-900 placeholder:text-gray-500 border border-gray-400 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
         />
 
         {error && (
-          <p className="text-red-600 text-sm mt-3">
+          <p className="text-red-700 font-semibold text-sm mt-3">
             {error}
           </p>
         )}
@@ -93,7 +93,7 @@ export default function AdminPage() {
         <button
           onClick={iniciarSesion}
           disabled={cargando}
-          className="mt-6 w-full bg-green-800 text-white rounded-xl py-3 font-bold disabled:opacity-50"
+          className="mt-6 w-full bg-green-800 hover:bg-green-900 text-white rounded-xl py-3 font-bold disabled:opacity-50"
         >
           {cargando ? "Ingresando..." : "Ingresar"}
         </button>
