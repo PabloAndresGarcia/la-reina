@@ -79,10 +79,7 @@ const [opcionesProducto, setOpcionesProducto] = useState<OpcionProducto[]>([]);
       setCargandoProductos(false);
       return;
     }
-console.log(
-  "PAPA:",
-  data?.find((producto) => producto.nombre === "Papa")
-);
+
     setProductos((data ?? []) as Producto[]);
     setCargandoProductos(false);
     const { data: opciones, error: errorOpciones } = await supabase
@@ -299,7 +296,7 @@ ${
     : ""
 }
 
-¡Hola! Quisiera realizar este pedido.`;
+`;
 
   const telefono = "5493424288676";
 

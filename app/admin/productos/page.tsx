@@ -173,37 +173,43 @@ export default function AdminProductos() {
   };
 
   const quitarFoto = async (producto: Producto) => {
-    const confirmar = window.confirm(
-      `¿Querés quitar la foto de "${producto.nombre}"?`
-    );
+  const confirmar = window.confirm(
+    `¿Querés quitar la foto de "${producto.nombre}"?`
+  );
 
-    if (!confirmar) return;
+  if (!confirmar) return;
 
-    setSubiendoFoto(producto.id);
+  setSubiendoFoto(producto.id);
 
-    const { error } = await supabase
-      .from("productos")
-      .update({
-        imagen: null,
-      })
-      .eq("id", producto.id);
+  const fotoAnterior = producto.imagen;
 
+  const { error } = await supabase
+    .from("productos")
+    .update({
+      imagen: null,
+    })
+    .eq("id", producto.id);
+
+  if (error) {
     setSubiendoFoto(null);
+    alert("Error al quitar la foto: " + error.message);
+    return;
+  }
 
-    if (error) {
-      alert("Error al quitar la foto: " + error.message);
-      return;
-    }
+  if (fotoAnterior) {
+    await eliminarFotoDeStorage(fotoAnterior);
+  }
 
-    actualizarProducto(
-      producto.id,
-      "imagen",
-      null
-    );
+  actualizarProducto(
+    producto.id,
+    "imagen",
+    null
+  );
 
-    alert("Foto quitada ✅");
-  };
+  setSubiendoFoto(null);
 
+  alert("Foto quitada y eliminada ✅");
+};
   const eliminarProducto = async (producto: Producto) => {
     const confirmar = window.confirm(
       `¿Seguro que querés eliminar "${producto.nombre}"?\n\nEsta acción no se puede deshacer.`
