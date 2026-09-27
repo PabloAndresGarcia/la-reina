@@ -41,8 +41,21 @@ export default function AdminProductos() {
   };
 
   useEffect(() => {
+  const verificarSesion = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      window.location.href = "/admin";
+      return;
+    }
+
     cargarProductos();
-  }, []);
+  };
+
+  verificarSesion();
+}, []);
 
   const actualizarProducto = (
     id: number,
