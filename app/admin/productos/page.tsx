@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import imageCompression from "browser-image-compression";
 
 type Producto = {
   id: number;
@@ -124,12 +125,29 @@ export default function AdminProductos() {
   };
 
   const subirFoto = async (
-    producto: Producto,
-    archivo: File
-  ) => {
-    setSubiendoFoto(producto.id);
+  producto: Producto,
+  archivo: File
+) => {
+  setSubiendoFoto(producto.id);
 
-    const extension = archivo.name.split(".").pop() || "jpg";
+  let archivoOptimizado: File;
+
+  try {
+    archivoOptimizado = await imageCompression(archivo, {
+      maxSizeMB: 0.3,
+      maxWidthOrHeight: 800,
+      useWebWorker: true,
+      fileType: "image/webp",
+      initialQuality: 0.8,
+    });
+  } catch (error) {
+    console.error("Error comprimiendo imagen:", error);
+    setSubiendoFoto(null);
+    alert("No se pudo procesar la imagen.");
+    return;
+  }
+
+  const extension = "webp";
 
     const nombreArchivo =
       `${producto.id}-${Date.now()}.${extension}`;
@@ -138,7 +156,7 @@ export default function AdminProductos() {
 
     const { error: errorSubida } = await supabase.storage
       .from("productos")
-      .upload(rutaArchivo, archivo);
+      .upload(rutaArchivo, archivoOptimizado);
 
     if (errorSubida) {
       setSubiendoFoto(null);

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import imageCompression from "browser-image-compression";
+
 
 export default function NuevoProducto() {
   const [nombre, setNombre] = useState("");
@@ -13,6 +15,24 @@ export default function NuevoProducto() {
   const [destacado, setDestacado] = useState(false);
   const [foto, setFoto] = useState<File | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
+
+  useEffect(() => {
+  const verificarSesion = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      window.location.href = "/admin";
+      return;
+    }
+
+    setVerificandoSesion(false);
+  };
+
+  verificarSesion();
+}, []);
 
   const guardarProducto = async () => {
     if (!nombre.trim()) {
@@ -30,15 +50,32 @@ export default function NuevoProducto() {
     let imagenUrl: string | null = null;
 
     if (foto) {
-      const extension = foto.name.split(".").pop();
+  let fotoOptimizada: File;
 
-      const nombreArchivo = `${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(2)}.${extension}`;
+  try {
+    fotoOptimizada = await imageCompression(foto, {
+      maxSizeMB: 0.3,
+      maxWidthOrHeight: 800,
+      useWebWorker: true,
+      fileType: "image/webp",
+      initialQuality: 0.8,
+    });
+  } catch (error) {
+    console.error("Error comprimiendo imagen:", error);
+    setGuardando(false);
+    alert("No se pudo procesar la imagen.");
+    return;
+  }
+
+  const extension = "webp";
+
+  const nombreArchivo = `${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2)}.${extension}`;
 
       const { error: errorFoto } = await supabase.storage
         .from("productos")
-        .upload(nombreArchivo, foto);
+        .upload(nombreArchivo, fotoOptimizada);
 
       if (errorFoto) {
         setGuardando(false);
@@ -80,6 +117,16 @@ export default function NuevoProducto() {
 
   const estiloLabel =
     "block font-semibold text-sm text-gray-800";
+
+    if (verificandoSesion) {
+  return (
+    <main className="min-h-screen bg-gray-100 p-6 text-gray-900">
+      <p className="font-semibold">
+        Verificando sesión... 👑
+      </p>
+    </main>
+  );
+}
 
   return (
     <main className="min-h-screen bg-gray-100 p-4">
