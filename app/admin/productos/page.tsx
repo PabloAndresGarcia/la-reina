@@ -434,17 +434,17 @@ export default function AdminProductos() {
                   </label>
 
                   <input
-                    type="number"
-                    value={producto.precio}
-                    onChange={(e) =>
-                      actualizarProducto(
-                        producto.id,
-                        "precio",
-                        Number(e.target.value)
-                      )
-                    }
-                    className="w-full bg-white text-gray-900 border border-gray-400 rounded-xl px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
-                  />
+  type="number"
+  value={producto.precio === 0 ? "" : producto.precio}
+  onChange={(e) =>
+    actualizarProducto(
+      producto.id,
+      "precio",
+      e.target.value === "" ? 0 : Number(e.target.value)
+    )
+  }
+  className="w-full bg-white text-gray-900 border border-gray-400 rounded-xl px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
+/>
                 </div>
 
               </div>
