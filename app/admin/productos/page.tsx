@@ -24,6 +24,10 @@ export default function AdminProductos() {
   const [eliminando, setEliminando] = useState<number | null>(null);
   const [subiendoFoto, setSubiendoFoto] = useState<number | null>(null);
 
+  // NUEVO: controla qué producto está desplegado.
+  // null = todos cerrados. Solo puede haber uno abierto a la vez.
+  const [productoAbierto, setProductoAbierto] = useState<number | null>(null);
+
   const cargarProductos = async () => {
     const { data, error } = await supabase
       .from("productos")
@@ -42,21 +46,21 @@ export default function AdminProductos() {
   };
 
   useEffect(() => {
-  const verificarSesion = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const verificarSesion = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (!session) {
-      window.location.href = "/admin";
-      return;
-    }
+      if (!session) {
+        window.location.href = "/admin";
+        return;
+      }
 
-    cargarProductos();
-  };
+      cargarProductos();
+    };
 
-  verificarSesion();
-}, []);
+    verificarSesion();
+  }, []);
 
   const actualizarProducto = (
     id: number,
@@ -65,37 +69,35 @@ export default function AdminProductos() {
   ) => {
     setProductos((actuales) =>
       actuales.map((producto) =>
-        producto.id === id
-          ? { ...producto, [campo]: valor }
-          : producto
+        producto.id === id ? { ...producto, [campo]: valor } : producto
       )
     );
   };
 
   const eliminarFotoDeStorage = async (url: string | null) => {
-  if (!url) return;
+    if (!url) return;
 
-  try {
-    const marcador = "/storage/v1/object/public/productos/";
-    const posicion = url.indexOf(marcador);
+    try {
+      const marcador = "/storage/v1/object/public/productos/";
+      const posicion = url.indexOf(marcador);
 
-    if (posicion === -1) return;
+      if (posicion === -1) return;
 
-    const rutaArchivo = decodeURIComponent(
-      url.substring(posicion + marcador.length)
-    );
+      const rutaArchivo = decodeURIComponent(
+        url.substring(posicion + marcador.length)
+      );
 
-    const { error } = await supabase.storage
-      .from("productos")
-      .remove([rutaArchivo]);
+      const { error } = await supabase.storage
+        .from("productos")
+        .remove([rutaArchivo]);
 
-    if (error) {
-      console.error("Error eliminando foto vieja:", error);
+      if (error) {
+        console.error("Error eliminando foto vieja:", error);
+      }
+    } catch (error) {
+      console.error("Error procesando foto vieja:", error);
     }
-  } catch (error) {
-    console.error("Error procesando foto vieja:", error);
-  }
-};
+  };
 
   const guardarProducto = async (producto: Producto) => {
     setGuardando(producto.id);
@@ -103,15 +105,15 @@ export default function AdminProductos() {
     const { error } = await supabase
       .from("productos")
       .update({
-  nombre: producto.nombre,
-  precio: producto.precio,
-  tipo: producto.tipo,
-  categoria: producto.categoria,
-  disponible: producto.disponible,
-  destacado: producto.destacado,
-  descuento_cantidad: producto.descuento_cantidad,
-  imagen: producto.imagen,
-})
+        nombre: producto.nombre,
+        precio: producto.precio,
+        tipo: producto.tipo,
+        categoria: producto.categoria,
+        disponible: producto.disponible,
+        destacado: producto.destacado,
+        descuento_cantidad: producto.descuento_cantidad,
+        imagen: producto.imagen,
+      })
       .eq("id", producto.id);
 
     setGuardando(null);
@@ -124,34 +126,28 @@ export default function AdminProductos() {
     alert("Producto guardado ✅");
   };
 
-  const subirFoto = async (
-  producto: Producto,
-  archivo: File
-) => {
-  setSubiendoFoto(producto.id);
+  const subirFoto = async (producto: Producto, archivo: File) => {
+    setSubiendoFoto(producto.id);
 
-  let archivoOptimizado: File;
+    let archivoOptimizado: File;
 
-  try {
-    archivoOptimizado = await imageCompression(archivo, {
-      maxSizeMB: 0.3,
-      maxWidthOrHeight: 800,
-      useWebWorker: true,
-      fileType: "image/webp",
-      initialQuality: 0.8,
-    });
-  } catch (error) {
-    console.error("Error comprimiendo imagen:", error);
-    setSubiendoFoto(null);
-    alert("No se pudo procesar la imagen.");
-    return;
-  }
+    try {
+      archivoOptimizado = await imageCompression(archivo, {
+        maxSizeMB: 0.3,
+        maxWidthOrHeight: 800,
+        useWebWorker: true,
+        fileType: "image/webp",
+        initialQuality: 0.8,
+      });
+    } catch (error) {
+      console.error("Error comprimiendo imagen:", error);
+      setSubiendoFoto(null);
+      alert("No se pudo procesar la imagen.");
+      return;
+    }
 
-  const extension = "webp";
-
-    const nombreArchivo =
-      `${producto.id}-${Date.now()}.${extension}`;
-
+    const extension = "webp";
+    const nombreArchivo = `${producto.id}-${Date.now()}.${extension}`;
     const rutaArchivo = `productos/${nombreArchivo}`;
 
     const { error: errorSubida } = await supabase.storage
@@ -187,60 +183,50 @@ export default function AdminProductos() {
       return;
     }
 
-    if (
-  producto.imagen &&
-  producto.imagen !== nuevaUrl
-) {
-  await eliminarFotoDeStorage(producto.imagen);
-}
+    if (producto.imagen && producto.imagen !== nuevaUrl) {
+      await eliminarFotoDeStorage(producto.imagen);
+    }
 
-    actualizarProducto(
-      producto.id,
-      "imagen",
-      nuevaUrl
-    );
+    actualizarProducto(producto.id, "imagen", nuevaUrl);
 
     alert("Foto actualizada 📷✅");
   };
 
   const quitarFoto = async (producto: Producto) => {
-  const confirmar = window.confirm(
-    `¿Querés quitar la foto de "${producto.nombre}"?`
-  );
+    const confirmar = window.confirm(
+      `¿Querés quitar la foto de "${producto.nombre}"?`
+    );
 
-  if (!confirmar) return;
+    if (!confirmar) return;
 
-  setSubiendoFoto(producto.id);
+    setSubiendoFoto(producto.id);
 
-  const fotoAnterior = producto.imagen;
+    const fotoAnterior = producto.imagen;
 
-  const { error } = await supabase
-    .from("productos")
-    .update({
-      imagen: null,
-    })
-    .eq("id", producto.id);
+    const { error } = await supabase
+      .from("productos")
+      .update({
+        imagen: null,
+      })
+      .eq("id", producto.id);
 
-  if (error) {
+    if (error) {
+      setSubiendoFoto(null);
+      alert("Error al quitar la foto: " + error.message);
+      return;
+    }
+
+    if (fotoAnterior) {
+      await eliminarFotoDeStorage(fotoAnterior);
+    }
+
+    actualizarProducto(producto.id, "imagen", null);
+
     setSubiendoFoto(null);
-    alert("Error al quitar la foto: " + error.message);
-    return;
-  }
 
-  if (fotoAnterior) {
-    await eliminarFotoDeStorage(fotoAnterior);
-  }
+    alert("Foto quitada y eliminada ✅");
+  };
 
-  actualizarProducto(
-    producto.id,
-    "imagen",
-    null
-  );
-
-  setSubiendoFoto(null);
-
-  alert("Foto quitada y eliminada ✅");
-};
   const eliminarProducto = async (producto: Producto) => {
     const confirmar = window.confirm(
       `¿Seguro que querés eliminar "${producto.nombre}"?\n\nEsta acción no se puede deshacer.`
@@ -266,6 +252,10 @@ export default function AdminProductos() {
       actuales.filter((item) => item.id !== producto.id)
     );
 
+    if (productoAbierto === producto.id) {
+      setProductoAbierto(null);
+    }
+
     alert(`${producto.nombre} eliminado ✅`);
   };
 
@@ -275,17 +265,20 @@ export default function AdminProductos() {
   };
 
   const productosFiltrados = productos.filter((producto) =>
-  producto.nombre
-    .toLowerCase()
-    .includes(busqueda.toLowerCase())
-);
+    producto.nombre.toLowerCase().includes(busqueda.toLowerCase())
+  );
+
+  const formatoPrecio = (precio: number) =>
+    new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      maximumFractionDigits: 0,
+    }).format(precio);
 
   if (cargando) {
     return (
       <main className="min-h-screen bg-gray-100 p-6 text-gray-900">
-        <p className="font-semibold">
-          Cargando productos... 👑
-        </p>
+        <p className="font-semibold">Cargando productos... 👑</p>
       </main>
     );
   }
@@ -293,14 +286,10 @@ export default function AdminProductos() {
   return (
     <main className="min-h-screen bg-gray-100 text-gray-900">
       <div className="max-w-5xl mx-auto p-4">
-
         {/* ENCABEZADO */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-black text-gray-900">
-              Productos
-            </h1>
-
+            <h1 className="text-3xl font-black text-gray-900">Productos</h1>
             <p className="text-gray-600 font-medium">
               Administración · La Reina 👑
             </p>
@@ -308,10 +297,7 @@ export default function AdminProductos() {
 
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() =>
-                (window.location.href =
-                  "/admin/productos/nuevo")
-              }
+              onClick={() => (window.location.href = "/admin/productos/nuevo")}
               className="bg-green-800 hover:bg-green-900 text-white px-4 py-2 rounded-xl font-bold"
             >
               + Nuevo producto
@@ -326,217 +312,297 @@ export default function AdminProductos() {
           </div>
         </div>
 
+        {/* BUSCADOR */}
+        <div className="mb-4">
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="🔎 Buscar producto..."
+            className="w-full bg-white text-gray-900 border border-gray-400 rounded-xl px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
+          />
+        </div>
 
-              <div className="mb-6">
-  <input
-    type="text"
-    value={busqueda}
-    onChange={(e) => setBusqueda(e.target.value)}
-    placeholder="🔎 Buscar producto..."
-    className="w-full bg-white text-gray-900 border border-gray-400 rounded-xl px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
-  />
-</div>
+        <p className="text-sm text-gray-600 font-medium mb-4">
+          {productosFiltrados.length} productos · Tocá uno para editarlo
+        </p>
 
+        {/* PRODUCTOS PLEGABLES */}
+        <div className="space-y-2">
+          {productosFiltrados.map((producto) => {
+            const abierto = productoAbierto === producto.id;
 
-        {/* PRODUCTOS */}
-        <div className="space-y-4">
-          {productosFiltrados.map((producto) => (
-            <div
-              key={producto.id}
-              className="bg-white rounded-2xl border border-gray-300 p-4 shadow-sm"
-            >
-
-              {/* FOTO */}
-              <div className="mb-4">
-                <p className="text-sm font-bold text-gray-800 mb-2">
-                  Foto del producto
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-
+            return (
+              <div
+                key={producto.id}
+                className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden"
+              >
+                {/* CABECERA COMPACTA - SIEMPRE VISIBLE */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setProductoAbierto(abierto ? null : producto.id)
+                  }
+                  className="w-full p-4 flex items-center gap-3 text-left hover:bg-gray-50 active:bg-gray-100"
+                  aria-expanded={abierto}
+                >
+                  {/* Miniatura */}
                   {producto.imagen ? (
                     <img
                       src={producto.imagen}
-                      alt={producto.nombre}
-                      className="w-full sm:w-32 h-32 object-cover rounded-xl border border-gray-300"
+                      alt=""
+                      className="w-12 h-12 shrink-0 object-cover rounded-xl border border-gray-200"
                     />
                   ) : (
-                    <div className="w-full sm:w-32 h-32 bg-gray-100 border border-gray-300 rounded-xl flex items-center justify-center text-gray-500 font-semibold">
-                      Sin foto
+                    <div className="w-12 h-12 shrink-0 bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center text-xl">
+                      🥬
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-2">
+                  {/* Nombre + precio */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-black text-gray-900 truncate">
+                        {producto.nombre}
+                      </p>
 
-                    <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold cursor-pointer">
-                      {subiendoFoto === producto.id
-                        ? "Subiendo..."
-                        : producto.imagen
-                        ? "📷 Cambiar foto"
-                        : "📷 Agregar foto"}
+                      {producto.destacado && (
+                        <span
+                          className="shrink-0 text-sm"
+                          title="Producto destacado"
+                        >
+                          ⭐
+                        </span>
+                      )}
+                    </div>
 
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        disabled={subiendoFoto === producto.id}
-                        onChange={(e) => {
-                          const archivo = e.target.files?.[0];
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="font-bold text-green-800">
+                        {formatoPrecio(producto.precio)}
+                      </span>
 
-                          if (archivo) {
-                            subirFoto(producto, archivo);
-                          }
+                      <span className="text-sm text-gray-500">
+                        · {producto.tipo}
+                      </span>
 
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-
-                    {producto.imagen && (
-                      <button
-                        onClick={() => quitarFoto(producto)}
-                        disabled={subiendoFoto === producto.id}
-                        className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-3 rounded-xl font-bold disabled:opacity-50"
+                      <span
+                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          producto.disponible
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-700"
+                        }`}
                       >
-                        🖼️ Quitar foto
-                      </button>
-                    )}
-
+                        {producto.disponible ? "Disponible" : "No disponible"}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-
-                {/* NOMBRE */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-800 mb-1">
-                    Producto
-                  </label>
-
-                  <input
-                    value={producto.nombre}
-                    onChange={(e) =>
-                      actualizarProducto(
-                        producto.id,
-                        "nombre",
-                        e.target.value
-                      )
-                    }
-                    className="w-full bg-white text-gray-900 border border-gray-400 rounded-xl px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
-                  />
-                </div>
-
-                {/* PRECIO */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-800 mb-1">
-                    Precio
-                  </label>
-
-                  <input
-  type="number"
-  value={producto.precio === 0 ? "" : producto.precio}
-  onChange={(e) =>
-    actualizarProducto(
-      producto.id,
-      "precio",
-      e.target.value === "" ? 0 : Number(e.target.value)
-    )
-  }
-  className="w-full bg-white text-gray-900 border border-gray-400 rounded-xl px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
-/>
-                </div>
-
-              </div>
-
-              {/* INFORMACIÓN */}
-              <div className="mt-3 text-sm text-gray-700 font-medium">
-                {producto.categoria} · Venta por {producto.tipo}
-              </div>
-
-              {/* OPCIONES */}
-              <div className="mt-4 flex flex-wrap gap-5 bg-gray-50 border border-gray-200 rounded-xl p-3">
-
-                <label className="flex items-center gap-2 text-gray-900 font-semibold cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={producto.disponible}
-                    onChange={(e) =>
-                      actualizarProducto(
-                        producto.id,
-                        "disponible",
-                        e.target.checked
-                      )
-                    }
-                    className="w-5 h-5 accent-green-700"
-                  />
-
-                  Disponible
-                </label>
-
-                <label className="flex items-center gap-2 text-gray-900 font-semibold cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={producto.destacado}
-                    onChange={(e) =>
-                      actualizarProducto(
-                        producto.id,
-                        "destacado",
-                        e.target.checked
-                      )
-                    }
-                    className="w-5 h-5 accent-green-700"
-                  />
-
-                  ⭐ Destacado
-                </label>
-
-                <label className="flex items-center gap-2 text-gray-900 font-semibold cursor-pointer">
-  <input
-    type="checkbox"
-    checked={producto.descuento_cantidad ?? false}
-    onChange={(e) =>
-      actualizarProducto(
-        producto.id,
-        "descuento_cantidad",
-        e.target.checked
-      )
-    }
-    className="w-5 h-5 accent-green-700"
-  />
-
-  💰 Descuento por cantidad
-</label>
-              </div>
-
-              {/* BOTONES */}
-              <div className="mt-4 flex gap-2">
-
-                <button
-                  onClick={() => guardarProducto(producto)}
-                  disabled={guardando === producto.id}
-                  className="flex-1 bg-green-800 hover:bg-green-900 text-white px-4 py-3 rounded-xl font-bold disabled:opacity-50"
-                >
-                  {guardando === producto.id
-                    ? "Guardando..."
-                    : "💾 Guardar"}
+                  {/* Flecha */}
+                  <div className="shrink-0 text-2xl font-bold text-gray-500">
+                    {abierto ? "▲" : "▼"}
+                  </div>
                 </button>
 
-                <button
-                  onClick={() => eliminarProducto(producto)}
-                  disabled={eliminando === producto.id}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold disabled:opacity-50"
-                >
-                  {eliminando === producto.id
-                    ? "Eliminando..."
-                    : "🗑️ Eliminar"}
-                </button>
+                {/* CONTENIDO DESPLEGABLE */}
+                {abierto && (
+                  <div className="border-t border-gray-200 p-4">
+                    {/* FOTO */}
+                    <div className="mb-4">
+                      <p className="text-sm font-bold text-gray-800 mb-2">
+                        Foto del producto
+                      </p>
 
+                      <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+                        {producto.imagen ? (
+                          <img
+                            src={producto.imagen}
+                            alt={producto.nombre}
+                            className="w-full sm:w-32 h-40 sm:h-32 object-cover rounded-xl border border-gray-300"
+                          />
+                        ) : (
+                          <div className="w-full sm:w-32 h-32 bg-gray-100 border border-gray-300 rounded-xl flex items-center justify-center text-gray-500 font-semibold">
+                            Sin foto
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2">
+                          <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold cursor-pointer">
+                            {subiendoFoto === producto.id
+                              ? "Subiendo..."
+                              : producto.imagen
+                              ? "📷 Cambiar foto"
+                              : "📷 Agregar foto"}
+
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={subiendoFoto === producto.id}
+                              onChange={(e) => {
+                                const archivo = e.target.files?.[0];
+
+                                if (archivo) {
+                                  subirFoto(producto, archivo);
+                                }
+
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+
+                          {producto.imagen && (
+                            <button
+                              onClick={() => quitarFoto(producto)}
+                              disabled={subiendoFoto === producto.id}
+                              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-3 rounded-xl font-bold disabled:opacity-50"
+                            >
+                              🖼️ Quitar foto
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {/* NOMBRE */}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-800 mb-1">
+                          Producto
+                        </label>
+
+                        <input
+                          value={producto.nombre}
+                          onChange={(e) =>
+                            actualizarProducto(
+                              producto.id,
+                              "nombre",
+                              e.target.value
+                            )
+                          }
+                          className="w-full bg-white text-gray-900 border border-gray-400 rounded-xl px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
+                        />
+                      </div>
+
+                      {/* PRECIO */}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-800 mb-1">
+                          Precio
+                        </label>
+
+                        <input
+                          type="number"
+                          value={producto.precio === 0 ? "" : producto.precio}
+                          onChange={(e) =>
+                            actualizarProducto(
+                              producto.id,
+                              "precio",
+                              e.target.value === "" ? 0 : Number(e.target.value)
+                            )
+                          }
+                          className="w-full bg-white text-gray-900 border border-gray-400 rounded-xl px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-green-700 focus:border-green-700"
+                        />
+                      </div>
+                    </div>
+
+                    {/* INFORMACIÓN */}
+                    <div className="mt-3 text-sm text-gray-700 font-medium">
+                      {producto.categoria} · Venta por {producto.tipo}
+                    </div>
+
+                    {/* OPCIONES */}
+                    <div className="mt-4 flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-5 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                      <label className="flex items-center gap-2 text-gray-900 font-semibold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={producto.disponible}
+                          onChange={(e) =>
+                            actualizarProducto(
+                              producto.id,
+                              "disponible",
+                              e.target.checked
+                            )
+                          }
+                          className="w-5 h-5 accent-green-700"
+                        />
+                        Disponible
+                      </label>
+
+                      <label className="flex items-center gap-2 text-gray-900 font-semibold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={producto.destacado}
+                          onChange={(e) =>
+                            actualizarProducto(
+                              producto.id,
+                              "destacado",
+                              e.target.checked
+                            )
+                          }
+                          className="w-5 h-5 accent-green-700"
+                        />
+                        ⭐ Destacado
+                      </label>
+
+                      <label className="flex items-center gap-2 text-gray-900 font-semibold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={producto.descuento_cantidad ?? false}
+                          onChange={(e) =>
+                            actualizarProducto(
+                              producto.id,
+                              "descuento_cantidad",
+                              e.target.checked
+                            )
+                          }
+                          className="w-5 h-5 accent-green-700"
+                        />
+                        💰 Descuento por cantidad
+                      </label>
+                    </div>
+
+                    {/* BOTONES */}
+                    <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                      <button
+                        onClick={() => guardarProducto(producto)}
+                        disabled={guardando === producto.id}
+                        className="flex-1 bg-green-800 hover:bg-green-900 text-white px-4 py-3 rounded-xl font-bold disabled:opacity-50"
+                      >
+                        {guardando === producto.id
+                          ? "Guardando..."
+                          : "💾 Guardar"}
+                      </button>
+
+                      <button
+                        onClick={() => eliminarProducto(producto)}
+                        disabled={eliminando === producto.id}
+                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold disabled:opacity-50"
+                      >
+                        {eliminando === producto.id
+                          ? "Eliminando..."
+                          : "🗑️ Eliminar"}
+                      </button>
+                    </div>
+
+                    {/* CERRAR TARJETA */}
+                    <button
+                      type="button"
+                      onClick={() => setProductoAbierto(null)}
+                      className="mt-3 w-full border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-xl font-semibold hover:bg-gray-50"
+                    >
+                      ▲ Cerrar
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
+        {productosFiltrados.length === 0 && (
+          <div className="bg-white border border-gray-300 rounded-2xl p-6 text-center text-gray-600 font-semibold">
+            No encontré productos con ese nombre.
+          </div>
+        )}
       </div>
     </main>
   );
